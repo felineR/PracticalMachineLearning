@@ -1,0 +1,74 @@
+---
+title: 'Course Project: Practical Machine Learning'
+author: "Feline Bohn"
+date: "25. Oktober 2017"
+output: html_document
+---
+
+# Course Instructions
+One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. The goal of this project is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise. 
+You should create a report describing how you built your model, how you used cross validation, what you think the expected out-of-sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+# Description of Approach
+The stated problem of the course project falls into the category of "classification problems". To solve it two algorithms will be implemented and their results compared: Decision Tree and Random Forest.
+A Cross Validation (80% training set, 20% test set) is used to prevent overfitting and to calculate the out-of-sample error. (Out-of-sample error = 1 - accuracy). 
+As expected, the Random Forest approach delivers better results than the Decision Tree approach. Random Forest achieves an out-of-sample error of 0.004; whereas Decision Tree achieves an out-of-sample error of 0.239. Based on these error rates the decision is made to predict the test cases using  Random Forest.
+
+# Commented R Code 
+
+## Initial Preparations
+```{r}
+# Loading required data sets
+training_data <- read.csv('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv')
+test_data <- read.csv('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv')
+
+# Loading required libraries
+library(caret); library(randomForest); library(rpart)
+
+# Setting seed to enable reproducibility
+set.seed(2606)
+```
+
+## Data Preparation and Cleaning
+```{r}
+# Removing irrelevant variables (identification of user, time, window)
+training_data <- training_data[,-c(1:7)]
+test_data <- test_data[,-c(1:7)]
+
+# Removing columns that contain only NA-values (training data and test data should contain the same columns)
+test_data <- test_data[,colSums(is.na(test_data)) == FALSE]
+training_data <- training_data[,names(training_data) %in% c(names(test_data),'classe')]
+```
+
+## Cross Validation
+```{r}
+createPartition <- createDataPartition(y=training_data$classe,p=0.8,list=FALSE)
+partTraining <- training_data[createPartition,] #80% of training dataset
+partTesting <- training_data[-createPartition,] #20% of training dataset
+```
+
+## Model and Predict with Decision Tree
+```{r}
+rpart_model <- rpart(classe ~ ., data=partTraining, method='class')
+rpart_prediction <- predict(rpart_model, partTesting, type='class')
+rpart_confusionMatrix <- confusionMatrix(rpart_prediction, partTesting$classe)
+```
+
+## Model and Predict with Random Forest
+```{r}
+randomForest_model <- randomForest(classe ~ ., data=partTraining, method='class')
+randomForest_prediction <- predict(randomForest_model, partTesting, type='class')
+randomForest_confusionMatrix <- confusionMatrix(randomForest_prediction, partTesting$classe)
+```
+
+## Compare Accuracy Results
+```{r}
+print(1 - rpart_confusionMatrix$overall[[1]])
+print(1 - randomForest_confusionMatrix$overall[[1]])
+```
+
+## Predict Testdata set
+```{r}
+prediction_test_data <- predict(randomForest_model, test_data, type='class')
+print(prediction_test_data)
+```
